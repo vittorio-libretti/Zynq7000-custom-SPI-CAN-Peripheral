@@ -1,21 +1,11 @@
 
 Compiling the demo's can be done as follows:
 
-gcc demo_rx.c rs232.c -Wall -Wextra -o2 -o test_rx
-
-gcc demo_tx.c rs232.c -Wall -Wextra -o2 -o test_tx
+gcc host.c rs232.c analysis.c -Wall -Wextra -o2 -o test_rx
 
 or use the makefile by entering "make"
 
-Run the demo by typing:
-
-./test_rx
-
-or
-
-./test_tx
-
-
+Run host.exe
 
 To include this library into your project:
 
