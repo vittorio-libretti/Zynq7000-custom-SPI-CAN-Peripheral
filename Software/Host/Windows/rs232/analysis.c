@@ -21,7 +21,7 @@ void init_CANframeToReceive(struct CANFrameToReceive **frame)
 void init_storageFrames(struct CANFrameToReceive **frame)
 {
 
-    int n_max_msg_to_memoryze = 1000;
+    int n_max_msg_to_memoryze = 500;
     *frame = (struct CANFrameToReceive *)malloc(sizeof(struct CANFrameToReceive) * n_max_msg_to_memoryze);
 
     for (int j = 0; j < n_max_msg_to_memoryze; j++)
@@ -84,7 +84,7 @@ void bufferArrayAnalysis(unsigned char *bufferArray, struct CANFrameToReceive **
 
         copyTwoCANFramesToReceive(analyzeFrame, (bufferArray_ptr + i));
         //printf("\n\tInizio confronto frame con HEARTBEAT");
-        if (analyzeFrame->ID == 0x7ea &&
+        if (//analyzeFrame->ID == 0x7ea &&
             analyzeFrame->DLC == 0x8 &&
             analyzeFrame->Data[0] == 0x01 &&
             analyzeFrame->Data[1] == 0x02 &&

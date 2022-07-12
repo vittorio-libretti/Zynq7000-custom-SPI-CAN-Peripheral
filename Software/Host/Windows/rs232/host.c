@@ -33,10 +33,6 @@ unsigned int msg_not_valid = 0;
 unsigned int *cont_valid_msg = &msg_valid;
 unsigned int *cont_not_valid_msg = &msg_not_valid;
 
-// storage lato host
-struct CANFrameToReceive *storageFrames;		  // puntatore all'elemento iniziale dello storage dell'host
-struct CANFrameToReceive *storageFrames_tail_ptr; // puntatore alla prima posizione libera nello storage dell'host
-
 int main()
 {
 	int n = 0, cport_nr = 0, /* /dev/ttyS0 (COM1 on windows) */
@@ -50,7 +46,9 @@ int main()
 	unsigned int NUM_MSG_IN_CODA = 0;
 	char mode[] = {'8', 'N', '1', 0};
 
-	struct CANFrameToReceive *storageFrames;
+	// storage lato host
+	struct CANFrameToReceive *storageFrames;		  // puntatore all'elemento iniziale dello storage dell'host
+	struct CANFrameToReceive *storageFrames_tail_ptr; // puntatore alla prima posizione libera nello storage dell'host
 	init_storageFrames(&storageFrames);
 	storageFrames_tail_ptr = storageFrames;
 
@@ -232,20 +230,19 @@ int main()
 			printf("\tRS232_flushTX...\n");
 			RS232_my_flushRX(cport_nr);
 			int count = 0;
-			// for (unsigned int i = 0; i < NUM_MSG_IN_CODA; i++)
-			// {
+			
 			int byte_da_ricevere = NUM_MSG_IN_CODA * 16;
-			// Sleep(1000);
+			
 			while (byte_da_ricevere > 0)
 			{
 
 				while (n == 0 && count < 100)
 				{
-					printf("\tin attesa di risposta...\n");
+					printf("\n\tin attesa di risposta...");
 					Sleep(100);
 					n = RS232_PollComport(cport_nr, bufferArray, 64);
 
-					printf("\tricevuti %i byte...\n", n);
+					printf("\n\tricevuti %i byte...", n);
 					if (n == 0)
 						count++;
 				}
@@ -253,15 +250,15 @@ int main()
 				if (n > 0)
 				{
 					byte_da_ricevere = byte_da_ricevere - n;
-					printf("\treceived %i frame: ", n / 16);
-					for (int i = 0; i < n; i++)
-					{
-						printf("%x ", bufferArray[i]);
-					}
-					printf("\r\n");
-					fflush(stdout);
+					printf("\n\treceived %i frame: ", n / 16);
+					// for (int i = 0; i < n; i++)
+					// {
+					// 	printf("%x ", bufferArray[i]);
+					// }
+				
 					unsigned char frameToParse[16] = {0}; ///
-					for(int i = 0; i < n/16; i++){
+					for (int i = 0; i < n / 16; i++)
+					{
 						copyTwoCANFramesToReceive((struct CANFrameToReceive *)frameToParse, (struct CANFrameToReceive *)bufferArray + i);
 						frameParser(frameToParse, HEARTH_BEAT_FRAME);
 					}
@@ -274,7 +271,7 @@ int main()
 			clearArray(bufferArray, 64);
 			clearArray(frameArray, 16);
 			clearArray(numberMsgInQueue, 4);
-			// }
+			
 			count = 0;
 			choice = 0;
 			NUM_MSG_IN_CODA = 0;
@@ -289,13 +286,11 @@ int main()
 			printf("\tRS232_flushTX...\n");
 			RS232_my_flushRX(cport_nr);
 			int count2 = 0;
-			// for (unsigned int i = 0; i < NUM_MSG_IN_CODA; i++)
-			// {
-			int byte_da_ricevere2 = 1000 * 16;
-			// Sleep(1000);
+			int byte_da_ricevere2 = 500 * 16;
+
 			while (byte_da_ricevere2 > 0)
 			{
-				printf("\byte_da_ricevere2: %i \n", byte_da_ricevere2);
+				printf("\n\tbyte_da_ricevere2: %i \n", byte_da_ricevere2);
 				while (n == 0 && count2 < 100)
 				{
 					printf("\tin attesa di risposta...\n");
@@ -306,7 +301,10 @@ int main()
 					if (n == 0)
 						count2++;
 				}
-
+				if (count2 == 100)
+				{
+					byte_da_ricevere2 = 0;
+				}
 				if (n > 0)
 				{
 					byte_da_ricevere2 = byte_da_ricevere2 - n;
@@ -316,25 +314,23 @@ int main()
 						printf("%x ", bufferArray[i]);
 					}
 					printf("\r\n");
-					
+
 					// inserisci funzione parse
 					bufferArrayAnalysis((unsigned char *)bufferArray, &storageFrames_tail_ptr, cont_valid_msg, cont_not_valid_msg);
 					// printf("\tmessaggi validi: %u\t messaggi non validi: %u\n", msg_valid, msg_not_valid);
 				}
-				printf("\tmessaggi validi: %u\t messaggi non validi: %u\n", msg_valid, msg_not_valid);
+
 				clearArray(bufferArray, 64);
 				count2 = 0;
 				n = 0;
-				msg_valid = 0;
-				msg_not_valid = 0;
 			}
-			clearArray(bufferArray, 64);
-
+			printf("\n\tmessaggi validi: %u\t messaggi non validi: %u\n", msg_valid, msg_not_valid);
 			n = 0;
 			clearArray(bufferArray, 64);
 			clearArray(frameArray, 16);
 			clearArray(numberMsgInQueue, 4);
-			// }
+			msg_valid = 0;
+			msg_not_valid = 0;
 			count2 = 0;
 			choice = 0;
 			RS232_my_flushRX(cport_nr);
@@ -397,12 +393,14 @@ void frameParser(unsigned char frameToParse[], unsigned char frameToFilter[])
 		pressure = (*((char *)charPressure)) * 40;
 
 		// stampa valori
-		printf("\tsensor id: ");
+		printf("\n\tsensor id: ");
 		for (long unsigned int i = 0; i < sizeof(sensorID); i++)
 		{
 			printf("%x ", sensorID[i]);
 		}
 		printf("\ttemp: %d °C\t", temp);
 		printf("pressure: %d mBar\r\n", pressure);
+	} else {
+		printf("\n\tparsing del frame saltato\n");
 	}
 }
