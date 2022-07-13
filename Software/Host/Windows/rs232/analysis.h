@@ -1,3 +1,11 @@
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#define NUMBER_OF_MSG_TO_STORE 3000
+#define NUMBER_OF_MSG_TO_TEST 600
+
+
 struct CANFrameToReceive{
 	unsigned int ID;				/* 32 bit */
 	unsigned char DLC;				/*  8 bit */

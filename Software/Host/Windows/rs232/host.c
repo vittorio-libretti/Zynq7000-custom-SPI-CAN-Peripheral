@@ -5,7 +5,7 @@
  the serial port and print them on the screen,
  exit the program by pressing Ctrl-C
 
- compile with the command: gcc host.c rs232.c -Wall -Wextra -o2 -o host
+ compile with the command: gcc host.c analysis.c rs232.c -Wall -Wextra -o2 -o host
 
  **************************************************/
 
@@ -33,12 +33,15 @@ unsigned int msg_not_valid = 0;
 unsigned int *cont_valid_msg = &msg_valid;
 unsigned int *cont_not_valid_msg = &msg_not_valid;
 
+struct CANFrameToReceive *storageFrames;		  // puntatore all'elemento iniziale dello storage dell'host
+struct CANFrameToReceive *storageFrames_tail_ptr; // puntatore alla prima posizione libera nello storage dell'host
+
 int main()
 {
 	int n = 0, cport_nr = 0, /* /dev/ttyS0 (COM1 on windows) */
 		bdrate = 115200;	 /* 9600 baud */
 
-	unsigned char HEARTH_BEAT_FRAME[16] = {0xea, 0x7, 0x0, 0x0, 0x8, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0xff, 0xff, 0xff};
+	unsigned char HEARTH_BEAT_FRAME[16] = {0xea, 0x7, 0x0, 0x0, 0x8, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0xdd, 0xee, 0xff};
 	unsigned char hearthbeatArray[8] = {0};
 	unsigned char numberMsgInQueue[4] = {0};
 	unsigned char frameArray[16] = {0};
@@ -47,8 +50,7 @@ int main()
 	char mode[] = {'8', 'N', '1', 0};
 
 	// storage lato host
-	struct CANFrameToReceive *storageFrames;		  // puntatore all'elemento iniziale dello storage dell'host
-	struct CANFrameToReceive *storageFrames_tail_ptr; // puntatore alla prima posizione libera nello storage dell'host
+
 	init_storageFrames(&storageFrames);
 	storageFrames_tail_ptr = storageFrames;
 
@@ -75,7 +77,7 @@ int main()
 	printf("\n\n\tIdentification complete\n\n");
 
 	char choice = 0;
-	while (choice != 4)
+	while (1)
 	{
 
 		printf("\n\n\t*********RS232 Windows to Zybo*********\n");
@@ -161,7 +163,7 @@ int main()
 				{
 					printf("%x ", sensorID[i]);
 				}
-				printf("\ttemp: %d °C\t", temp);
+				printf("\ttemp: %d C\t", temp);
 				printf("pressure: %d mBar\r\n", pressure);
 			}
 			n = 0;
@@ -286,7 +288,7 @@ int main()
 			printf("\tRS232_flushTX...\n");
 			RS232_my_flushRX(cport_nr);
 			int count2 = 0;
-			int byte_da_ricevere2 = 500 * 16;
+			int byte_da_ricevere2 = NUMBER_OF_MSG_TO_TEST * 16;
 
 			while (byte_da_ricevere2 > 0)
 			{
@@ -316,7 +318,7 @@ int main()
 					printf("\r\n");
 
 					// inserisci funzione parse
-					bufferArrayAnalysis((unsigned char *)bufferArray, &storageFrames_tail_ptr, cont_valid_msg, cont_not_valid_msg);
+				bufferArrayAnalysis((unsigned char *)bufferArray, &storageFrames_tail_ptr, cont_valid_msg, cont_not_valid_msg);
 					// printf("\tmessaggi validi: %u\t messaggi non validi: %u\n", msg_valid, msg_not_valid);
 				}
 
@@ -328,7 +330,6 @@ int main()
 			n = 0;
 			clearArray(bufferArray, 64);
 			clearArray(frameArray, 16);
-			clearArray(numberMsgInQueue, 4);
 			msg_valid = 0;
 			msg_not_valid = 0;
 			count2 = 0;

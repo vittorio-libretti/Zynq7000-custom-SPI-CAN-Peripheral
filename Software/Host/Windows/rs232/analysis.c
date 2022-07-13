@@ -1,7 +1,4 @@
 #include "analysis.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 
 void init_CANframeToReceive(struct CANFrameToReceive **frame)
 {
@@ -21,10 +18,9 @@ void init_CANframeToReceive(struct CANFrameToReceive **frame)
 void init_storageFrames(struct CANFrameToReceive **frame)
 {
 
-    int n_max_msg_to_memoryze = 500;
-    *frame = (struct CANFrameToReceive *)malloc(sizeof(struct CANFrameToReceive) * n_max_msg_to_memoryze);
+    *frame = (struct CANFrameToReceive *)malloc(sizeof(struct CANFrameToReceive) * NUMBER_OF_MSG_TO_STORE);
 
-    for (int j = 0; j < n_max_msg_to_memoryze; j++)
+    for (int j = 0; j < NUMBER_OF_MSG_TO_STORE; j++)
     {
 
         ((*frame) + j)->ID = j;
@@ -67,66 +63,223 @@ void copyTwoCANFramesToReceive(struct CANFrameToReceive *frame1, struct CANFrame
     //printf("\n\tFine copia del frame");
 }
 
-void bufferArrayAnalysis(unsigned char *bufferArray, struct CANFrameToReceive **storageFrames_tail_ptr_ptr, unsigned int *cont_valid_msg, unsigned int *cont_not_valid_msg)
+void bufferArrayAnalysis( unsigned char *bufferArray, struct CANFrameToReceive **storageFrames_tail_ptr_ptr, unsigned int * cont_valid_msg, unsigned int * cont_not_valid_msg )
 {
-    //printf("\n\t**storageFrames_tail_ptr_ptr: %u", (unsigned int) storageFrames_tail_ptr_ptr);
-    //printf("\n\t*storageFrames_tail_ptr_ptr: %u", (unsigned int)*storageFrames_tail_ptr_ptr);
-    //printf("\n\tInizio analisi buffer");
-    struct CANFrameToReceive *analyzeFrame;
-    init_CANframeToReceive(&analyzeFrame);
+
     struct CANFrameToReceive *bufferArray_ptr = (struct CANFrameToReceive *)bufferArray;
     struct CANFrameToReceive *storageFrames_tail_ptr = (*storageFrames_tail_ptr_ptr);
 
-    int stOf = 0; // storageFrames offset
+    int stOf = 0;				//storageFrames offset
+    unsigned int retry = 0;		//flag per sfasamento nel bufferArray
+    unsigned int lost = 0;		//flag per byte perso
 
     for (int i = 0; i < 4; i++)
     {
 
-        copyTwoCANFramesToReceive(analyzeFrame, (bufferArray_ptr + i));
-        //printf("\n\tInizio confronto frame con HEARTBEAT");
-        if (//analyzeFrame->ID == 0x7ea &&
-            analyzeFrame->DLC == 0x8 &&
-            analyzeFrame->Data[0] == 0x01 &&
-            analyzeFrame->Data[1] == 0x02 &&
-            analyzeFrame->Data[2] == 0x03 &&
-            analyzeFrame->Data[3] == 0x04 &&
-            analyzeFrame->Data[4] == 0x05 &&
-            analyzeFrame->Data[5] == 0x06 &&
-            analyzeFrame->Data[6] == 0x07 &&
-            analyzeFrame->Data[7] == 0x08 &&
-            analyzeFrame->CTRL1 == 0xff &&
-            analyzeFrame->CTRL2 == 0xff &&
-            analyzeFrame->CTRL3 == 0xff)
+    	if( lost == 1 ) {
+
+    		bufferArray_ptr = bufferArray_ptr + 1;
+    		bufferArray_ptr = (struct CANFrameToReceive *)(((unsigned char*) bufferArray_ptr) -1);
+    	}
+    	else {
+			if(i !=0){
+			printf("puntatore al mex del buffer prime dell'incremento: %p\n", bufferArray_ptr);
+    		bufferArray_ptr =(struct CANFrameToReceive *) bufferArray_ptr + 1;
+			printf("puntatore al mex del buffer dopo l'incremento: %p\n", bufferArray_ptr);
+			printf("quantov vale i? %d ",i);
+			//stampa qua il frame can per controllare i valori 
+			}
+    	}
+
+        if (/*bufferArray_ptr->ID == 0x7ea &&*/
+        	bufferArray_ptr->DLC == 0x8 &&
+			bufferArray_ptr->Data[0] == 0x01 &&
+			bufferArray_ptr->Data[1] == 0x02 &&
+			bufferArray_ptr->Data[2] == 0x03 &&
+			bufferArray_ptr->Data[3] == 0x04 &&
+			bufferArray_ptr->Data[4] == 0x05 &&
+			bufferArray_ptr->Data[5] == 0x06 &&
+			bufferArray_ptr->Data[6] == 0x07 &&
+			bufferArray_ptr->Data[7] == 0x08 &&
+			bufferArray_ptr->CTRL1 == 0xdd &&
+			bufferArray_ptr->CTRL2 == 0xee &&
+			bufferArray_ptr->CTRL3 == 0xff)
         {
 
             // il messaggio è corretto
-            //printf("\n\tInizio copia frame in area storage");
-            //printf("\n\tindirizzo storageFrames_tail_ptr + stOf: %u", (unsigned int)storageFrames_tail_ptr + stOf);
-            copyTwoCANFramesToReceive((storageFrames_tail_ptr + stOf), analyzeFrame);
-            //printf("\n\tFine copia frame in area storage");
+            copyTwoCANFramesToReceive((storageFrames_tail_ptr + stOf), bufferArray_ptr);
             stOf++;
             (*cont_valid_msg)++;
-            printf("\n\tMessaggio integro");
+			printf("Messaggio corretto");
+            lost = 0;
+			printf( "\nFrame CAN:\nID = %x\r\n", bufferArray_ptr->ID );
+            printf( "DLC = %x\r\n", bufferArray_ptr->DLC );
+            printf( "Dato = %x ", bufferArray_ptr->Data[0] );
+            for( int j=1; j<(bufferArray_ptr->DLC)-1; j++ ) {
+             printf( "%x ", bufferArray_ptr->Data[j] );
+            }
+            printf( "%x\r\n", bufferArray_ptr->Data[7] );
+            printf( "CTRL = %x %x %x\r\n", bufferArray_ptr->CTRL1, bufferArray_ptr->CTRL2, bufferArray_ptr->CTRL3 );
+
         }
         else
         {
+			printf("Siamo nello sfasamento\n");
+			printf( "\nFrame CAN:\nID = %x\r\n", bufferArray_ptr->ID );
+            printf( "DLC = %x\r\n", bufferArray_ptr->DLC );
+            printf( "Dato = %x ", bufferArray_ptr->Data[0] );
+            for( int j=1; j<(bufferArray_ptr->DLC)-1; j++ ) {
+             printf( "%x ", bufferArray_ptr->Data[j] );
+            }
+            printf( "%x\r\n", bufferArray_ptr->Data[7] );
+            printf( "CTRL = %x %x %x\r\n", bufferArray_ptr->CTRL1, bufferArray_ptr->CTRL2, bufferArray_ptr->CTRL3 );
+			
+			
+			
+			
+			
+			
+			
 
-            // il messaggio è corrotto! scartare
-            (*cont_not_valid_msg)++;
-            printf("\n\tMessaggio corrotto!");
-            // ATTENZIONE:
-            // in questo punto del codice bisognerebbe controllare due cose:
-            //  - se i 16 byte sono arrivati tutti ma uno o più di essi sono corrotti (cioè hanno un valore diverso da quello di partenza).
-            //	 In questo caso ci basta solo incrementare il contatore, non possiamo fare altro.
-            //  - se i si è perso uno o più byte tra questi 16 byte, quindi è possibile riuscire a capire che comunque il messaggio ad un certo punto finisce bene.
-            //    In tal caso, bisognerebbe aggiornare il puntatore "bufferArray_ptr" a puntare all'inizio del nuovo messaggio tenendo conto dei byte persi.
+			
+//-------------------------------- L'errore sta prima di questi controlli---------------------------------------//
+
+
+
+			
+			
+        	/* -----------------------------------------------------------------------------------------------------------------*/
+        	/* ---------------------------------------------  ANALISI SFASAMENTO  ----------------------------------------------*/
+        	/* -----------------------------------------------------------------------------------------------------------------*/
+
+        	//Prima di essere sicuri che il messaggio sia corrotto, verifichiamo che i byte arrivati non siano sfasati.
+        	//I messaggi possono essere recuperati se sono sfasati al massimo di 3 byte in avanti (grazie ai 3 byte di controllo finali).
+
+
+        	unsigned char ID_byte1 = *((unsigned char*) bufferArray_ptr);
+        	unsigned char ID_byte2 = *(((unsigned char*) bufferArray_ptr)+1);
+        	unsigned char ID_byte3 = *(((unsigned char*) bufferArray_ptr)+2);
+
+
+        	//se il primo byte è 0xff, sposta bufferArray_ptr a puntare 1 byte più avanti
+        	if( ID_byte1 == 0xff ) {
+
+        		bufferArray_ptr = (struct CANFrameToReceive *)(((unsigned char*) bufferArray_ptr) +1);
+        		retry = 1;
+        	}
+        	//se il primo byte è 0xee e il secondo byte è 0xff, sposta bufferArray_ptr a puntare 2 byte più avanti
+        	else if( ID_byte1 == 0xee && ID_byte2 == 0xff ) {
+
+    			bufferArray_ptr = (struct CANFrameToReceive *)(((unsigned char*) bufferArray_ptr) +2);
+    			retry = 1;
+        	}
+        	//se il primo è 0xdd, il secondo è 0xee e il terzo byte sono 0xff, sposta bufferArray_ptr a puntare 3 byte più avanti
+        	else if( ID_byte1 == 0xdd && ID_byte2 == 0xee && ID_byte3 == 0xff ) {
+
+        		bufferArray_ptr = (struct CANFrameToReceive *)(((unsigned char*) bufferArray_ptr) +3);
+        		retry = 1;
+        	}
+
+        	//se stiamo valutando il 4° messaggio, per evitare problemi di memoria, verifichiamo il messaggio senza byte di controllo (altrimenti il puntatore uscirebbe dal frameBuffer di 64 byte)
+            if( retry == 1 && i == 3 ) {
+
+            	if (/* bufferArray_ptr->ID == 0x7ea && */
+            		bufferArray_ptr->DLC == 0x8 &&
+					bufferArray_ptr->Data[0] == 0x01 &&
+					bufferArray_ptr->Data[1] == 0x02 &&
+					bufferArray_ptr->Data[2] == 0x03 &&
+					bufferArray_ptr->Data[3] == 0x04 &&
+					bufferArray_ptr->Data[4] == 0x05 &&
+					bufferArray_ptr->Data[5] == 0x06 &&
+					bufferArray_ptr->Data[6] == 0x07 &&
+					bufferArray_ptr->Data[7] == 0x08)
+            	{
+            		//il messaggio è sfasato, ma corretto, quindi possiamo memorizzarlo lo stesso
+
+            		//Nota: essendo l'ultimo messaggio, la copia deve essere fatta ad hoc poiché altrimenti il puntatore esce dall'area di memoria consentita
+            		(storageFrames_tail_ptr + stOf)->ID = bufferArray_ptr->ID;
+            		(storageFrames_tail_ptr + stOf)->DLC = bufferArray_ptr->DLC;
+            		for( int i = 0; i < (storageFrames_tail_ptr + stOf)->DLC; i++ ) {
+            			(storageFrames_tail_ptr + stOf)->Data[i] = bufferArray_ptr->Data[i];
+            		}
+            		(storageFrames_tail_ptr + stOf)->CTRL1 = 0xdd;
+            		(storageFrames_tail_ptr + stOf)->CTRL2 = 0xee;
+            		(storageFrames_tail_ptr + stOf)->CTRL3 = 0xff;
+
+            		stOf++;
+                    (*cont_valid_msg)++;
+            	}
+
+            }
+        	//se stiamo valutando il i primi 3 messaggi, verifichiamo il messaggio intero
+            else if ( retry == 1 ) {
+
+            	if(/* bufferArray_ptr->ID == 0x7ea && */
+            	   bufferArray_ptr->DLC == 0x8 &&
+				   bufferArray_ptr->Data[0] == 0x01 &&
+				   bufferArray_ptr->Data[1] == 0x02 &&
+				   bufferArray_ptr->Data[2] == 0x03 &&
+				   bufferArray_ptr->Data[3] == 0x04 &&
+				   bufferArray_ptr->Data[4] == 0x05 &&
+				   bufferArray_ptr->Data[5] == 0x06 &&
+				   bufferArray_ptr->Data[6] == 0x07 &&
+				   bufferArray_ptr->Data[7] == 0x08 &&
+				   bufferArray_ptr->CTRL1 == 0xdd &&
+				   bufferArray_ptr->CTRL2 == 0xee &&
+				   bufferArray_ptr->CTRL3 == 0xff)
+            	{
+            		//il messaggio è sfasato, ma corretto, quindi possiamo memorizzarlo lo stesso
+            		copyTwoCANFramesToReceive((storageFrames_tail_ptr + stOf), bufferArray_ptr);
+            		stOf++;
+            		(*cont_valid_msg)++;
+            	}
+            }
+			 
+
+        	/* -----------------------------------------------------------------------------------------------------------------*/
+        	/* -------------------------------------------  ANALISI PERDITA 1 BYTE  --------------------------------------------*/
+        	/* -----------------------------------------------------------------------------------------------------------------*/
+
+            //Se il messaggio è corrotto a causa della perdita di un byte, allora aggiorniamo il puntatore bufferArray_ptr in
+            //modo da riuscire a leggere correttamente i restanti messaggi. Questa analisi vale solo per i primi 3 messaggi.
+
+
+            //se stiamo considerando uno dei primi 3 messaggi del bufferArray
+			if( i<3 ) {
+
+				//se si è perso un byte
+				if( (bufferArray_ptr->CTRL1 == 0xdd && bufferArray_ptr->CTRL2 == 0xee && bufferArray_ptr->CTRL3 != 0xff) ||		/* si è perso l'ultimo byte */
+					(bufferArray_ptr->CTRL1 == 0xdd && bufferArray_ptr->CTRL2 != 0xee && bufferArray_ptr->CTRL3 == 0xff) ||		/* si è perso il penultimo byte */
+					(bufferArray_ptr->CTRL1 != 0xdd && bufferArray_ptr->CTRL2 == 0xee && bufferArray_ptr->CTRL3 == 0xff) ) {	/* si è perso un byte tra il primo e il terzultimo */
+
+						//allora bisogna incrementare il contatore (poiché questo messaggio viene scartato lo stesso)
+					    (*cont_not_valid_msg)++;
+					    lost = 1;
+					    //e bisogna aggiornare il puntatore per leggere correttamente il prossimo messaggio all'iterazione successiva del ciclo for principale
+					    //(cosa fatta all'inizio del ciclo for grazie al flag "lost")
+						printf("Analisi perdita 1 byte");
+				}
+			}
+
+
+        	/* -----------------------------------------------------------------------------------------------------------------*/
+        	/* ------------------------------------------------  FINE ANALISI  -------------------------------------------------*/
+        	/* -----------------------------------------------------------------------------------------------------------------*/
+
+            // Se il messaggio non è sfasato e non si è perso un byte, allora il messaggio è corrotto! bisogna scartarlo ed incrementare il contatore relativo
+
+
+            if ( retry == 0 && lost == 0 ) {
+
+            	(*cont_not_valid_msg)++;
+				printf("messaggio perduto senza analisi");
+            }
+
+            retry = 0;
         }
-        //printf("\n\tFine confronto frame con HEARTBEAT");
+
     }
 
-    // questo puntatore viene aggiornato a puntare al prossimo spazio disponibile nello storage lato host
+    //questo puntatore viene aggiornato a puntare al prossimo spazio disponibile nello storage lato host
     (*storageFrames_tail_ptr_ptr) = storageFrames_tail_ptr + stOf;
-
-    deinit_CANframeToReceive(&analyzeFrame);
-    //printf("\n\tFine analisi buffer");
 }

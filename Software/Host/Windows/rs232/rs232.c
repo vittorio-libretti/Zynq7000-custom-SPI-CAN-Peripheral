@@ -875,7 +875,320 @@ int RS232_GetPortnr(const char *devname)
   return -1;  /* device not found */
 }
 
+int RS232_OpenComport_2_0(int comport_number, int baudrate, const char *mode, int flowctrl, int * flag_ptr)
+{
+  
 
+  printf("DEBUG : OpenComport (all'inizio) : comport_number passato : %d\n", comport_number);
+  
+  if((comport_number>=RS232_PORTNR)||(comport_number<0))
+  {
+    printf("illegal comport number\n");
+    return(-1);
+  }
+
+  switch(baudrate)
+  {
+    case     110 : strcpy(mode_str, "baud=110");
+                   break;
+    case     300 : strcpy(mode_str, "baud=300");
+                   break;
+    case     600 : strcpy(mode_str, "baud=600");
+                   break;
+    case    1200 : strcpy(mode_str, "baud=1200");
+                   break;
+    case    2400 : strcpy(mode_str, "baud=2400");
+                   break;
+    case    4800 : strcpy(mode_str, "baud=4800");
+                   break;
+    case    9600 : strcpy(mode_str, "baud=9600");
+                   break;
+    case   19200 : strcpy(mode_str, "baud=19200");
+                   break;
+    case   38400 : strcpy(mode_str, "baud=38400");
+                   break;
+    case   57600 : strcpy(mode_str, "baud=57600");
+                   break;
+    case  115200 : strcpy(mode_str, "baud=115200");
+                   break;
+    case  128000 : strcpy(mode_str, "baud=128000");
+                   break;
+    case  256000 : strcpy(mode_str, "baud=256000");
+                   break;
+    case  500000 : strcpy(mode_str, "baud=500000");
+                   break;
+    case  921600 : strcpy(mode_str, "baud=921600");
+                   break;
+    case 1000000 : strcpy(mode_str, "baud=1000000");
+                   break;
+    case 1500000 : strcpy(mode_str, "baud=1500000");
+                   break;
+    case 2000000 : strcpy(mode_str, "baud=2000000");
+                   break;
+    case 3000000 : strcpy(mode_str, "baud=3000000");
+                   break;
+    default      : printf("invalid baudrate\n");
+                   return(-1);
+                   break;
+  }
+
+  if(strlen(mode) != 3)
+  {
+    printf("invalid mode \"%s\"\n", mode);
+    return(-1);
+  }
+
+  switch(mode[0])
+  {
+    case '8': strcat(mode_str, " data=8");
+              break;
+    case '7': strcat(mode_str, " data=7");
+              break;
+    case '6': strcat(mode_str, " data=6");
+              break;
+    case '5': strcat(mode_str, " data=5");
+              break;
+    default : printf("invalid number of data-bits '%c'\n", mode[0]);
+              return(-1);
+              break;
+  }
+
+  switch(mode[1])
+  {
+    case 'N':
+    case 'n': strcat(mode_str, " parity=n");
+              break;
+    case 'E':
+    case 'e': strcat(mode_str, " parity=e");
+              break;
+    case 'O':
+    case 'o': strcat(mode_str, " parity=o");
+              break;
+    default : printf("invalid parity '%c'\n", mode[1]);
+              return(-1);
+              break;
+  }
+
+  switch(mode[2])
+  {
+    case '1': strcat(mode_str, " stop=1");
+              break;
+    case '2': strcat(mode_str, " stop=2");
+              break;
+    default : printf("invalid number of stop bits '%c'\n", mode[2]);
+              return(-1);
+              break;
+  }
+
+  if(flowctrl)
+  {
+    strcat(mode_str, " xon=off to=off odsr=off dtr=on rts=off");
+  }
+  else
+  {
+    strcat(mode_str, " xon=off to=off odsr=off dtr=on rts=on");
+  }
+
+/*
+http://msdn.microsoft.com/en-us/library/windows/desktop/aa363145%28v=vs.85%29.aspx
+
+http://technet.microsoft.com/en-us/library/cc732236.aspx
+
+https://docs.microsoft.com/en-us/windows/desktop/api/winbase/ns-winbase-_dcb
+*/
+   //AGGIUNTA
+	RS_printCommInfo(comports[4]);
+  //INIZIO MODIFICA NOSTRA
+  printf("DEBUG : OpenComport INIZIO MODIFICA NOSTRA\n");
+  
+  int flag = 0;
+  while( flag == 0 && comport_number < 32) {
+   	printf("DEBUG : OpenComport ADESSO PROVO comport_number : %d\n", comport_number);
+
+	Cport[comport_number] = CreateFileA(comports[comport_number],
+						  GENERIC_READ|GENERIC_WRITE,
+						  0,                          /* no share  */
+						  NULL,                       /* no security */
+						  OPEN_EXISTING,
+						  0,                          /* no threads */
+						  NULL);                      /* no templates */
+	
+	printf("DEBUG : OpenComport PROVA FINITA\n");
+
+	if(Cport[comport_number]==INVALID_HANDLE_VALUE)
+	{
+	  printf("OpenComport ERRORE : unable to open comport number : %d\n", (comport_number+1));
+	  comport_number++;
+	}
+	else {
+	  printf("OpenComport TROVATA : opened comport number : %d\n", (comport_number+1));
+	  
+	  flag = Identify(comport_number);
+	  if( flag == 0 ) {
+		comport_number++;
+	  }
+	  else {
+		*flag_ptr = flag;
+	  }
+	}
+  }
+
+  if( flag == 0 ) {
+	printf("OpenComport ERRORE : unable to open comport. FINE\n");
+    return(-1);
+  }
+  printf("OpenComport SUCCESSO : comport %d opened\n", (comport_number+1));
+  //FINE MODIFICA NOSTRA
+
+
+  DCB port_settings;
+  memset(&port_settings, 0, sizeof(port_settings));  /* clear the new struct  */
+  port_settings.DCBlength = sizeof(port_settings);
+
+  if(!BuildCommDCBA(mode_str, &port_settings))
+  {
+    printf("unable to set comport dcb settings\n");
+    CloseHandle(Cport[comport_number]);
+    return(-1);
+  }
+
+  if(flowctrl)
+  {
+    port_settings.fOutxCtsFlow = TRUE;
+    port_settings.fRtsControl = RTS_CONTROL_HANDSHAKE;
+  }
+
+  if(!SetCommState(Cport[comport_number], &port_settings))
+  {
+    printf("unable to set comport cfg settings\n");
+    CloseHandle(Cport[comport_number]);
+    return(-1);
+  }
+
+  COMMTIMEOUTS Cptimeouts;
+
+  Cptimeouts.ReadIntervalTimeout         = MAXDWORD;
+  Cptimeouts.ReadTotalTimeoutMultiplier  = 0;
+  Cptimeouts.ReadTotalTimeoutConstant    = 0;
+  Cptimeouts.WriteTotalTimeoutMultiplier = 0;
+  Cptimeouts.WriteTotalTimeoutConstant   = 0;
+
+  if(!SetCommTimeouts(Cport[comport_number], &Cptimeouts))
+  {
+    printf("unable to set comport time-out settings\n");
+    CloseHandle(Cport[comport_number]);
+    return(-1);
+  }
+  
+  
+
+  return(comport_number);
+}
+
+int Identify( int cport_nr ) {
+
+	int n = 0;
+	unsigned char zyboAck[2] = {0,0};
+	
+	int cont = 0;
+	int flag = 0;
+	
+	while( cont < 10 && flag == 0 ) {
+				
+		Sleep(500);
+		RS232_SendByte(cport_nr, '0');
+		RS232_flushTX(cport_nr);
+
+		while (n == 0){
+			printf("in attesa di risposta...\n");
+			n = RS232_PollComport(cport_nr, zyboAck, 2);
+			RS232_flushRX(cport_nr);
+		}
+		if (n > 0) {
+			printf("received %i bytes:\n message received: %.2s\n", n, ( char *)zyboAck);
+			if( strstr( (char *)zyboAck, "OK" ) ) {
+				flag = 1;
+			}
+		}
+		cont++;
+	}
+	
+	return flag;
+}
+
+void RS_printCommInfo(const char *comXX)
+{
+ BOOL rc;
+ HANDLE com_handle;
+ COMMPROP CommProp;
+
+ printf("%s:",comXX);
+ 
+ com_handle = CreateFile(
+  comXX,         /* シリアルポートの文字列 */
+  GENERIC_READ | GENERIC_WRITE   ,   /* アクセスモード */
+  0,
+  NULL,          /* セキュリティ属性 */
+  OPEN_EXISTING,        /* 作成フラグ */
+  0,           /* 属性 */
+  NULL          /* テンプレートのハンドル */
+ );
+ if( com_handle == INVALID_HANDLE_VALUE) {
+  printf(" Can't Open .");
+ }else{
+  rc = GetCommProperties(com_handle,&CommProp);
+  if(rc) {
+#if 0
+  DWORD dwMaxTxQueue；   // バイト単位の最大送信バッファサイズ
+  DWORD dwMaxRxQueue；   // バイト単位の最大受信バッファサイズ
+  DWORD dwMaxBaud；      // ボーレート最大値
+  DWORD dwProvSubType；   // 特定プロバイダータイプ
+  DWORD dwProvCapabilities； // サポートされた関数
+#endif
+   printf("MaxTxQue=%ld,MaxRxQue=%ld,MaxBaud=%lx"
+    ,CommProp.dwMaxTxQueue
+    ,CommProp.dwMaxRxQueue
+    ,CommProp.dwMaxBaud);
+  //}
+
+   printf("CurrentTxQue=%ld,CurrentRxQue=%ld,PacketLength=%d"
+    ,CommProp.dwCurrentTxQueue
+    ,CommProp.dwCurrentRxQueue
+    ,CommProp.wPacketLength);
+  }
+
+
+#if 0
+  static DCB com_dcb;
+  memset(&com_dcb,0,sizeof(com_dcb));
+
+  com_dcb.DCBlength = sizeof(DCB);
+  rc = GetCommState(com_handle,&com_dcb);
+//  if(rc) 
+  {
+//  com_dcb.BaudRate = baudrate;
+//  com_dcb.ByteSize = 8;
+//  com_dcb.Parity   = NOPARITY;
+//  com_dcb.StopBits = ONESTOPBIT;
+   printf("Baud=%ld bits=%d parity=%d stop=%d"
+    ,com_dcb.BaudRate 
+    ,com_dcb.ByteSize 
+    ,com_dcb.Parity   
+    ,com_dcb.StopBits 
+   );
+  }
+#endif
+  CloseHandle(com_handle);
+
+ }
+ printf(" \n");
+ 
+ //Maggiori info qui:
+ //https://cpp.hotexamples.com/it/examples/-/-/GetCommProperties/cpp-getcommproperties-function-examples.html
+ //https://docs.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-commprop
+ //https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getcommproperties
+ 
+}
 
 
 

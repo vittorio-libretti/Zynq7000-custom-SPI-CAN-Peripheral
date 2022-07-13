@@ -77,6 +77,9 @@ void RS232_flushRXTX(int);
 int RS232_GetPortnr(const char *);
 void RS232_my_flushRX(int);
 void RS232_my_flushTX(int);
+int RS232_OpenComport_2_0(int, int, const char *, int, int *);
+int Identify(int);
+void RS_printCommInfo(const char *);
 
 #ifdef __cplusplus
 } /* extern "C" */
