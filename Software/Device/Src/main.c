@@ -65,7 +65,7 @@
 #define DELAY_100_MSECONDS		100UL
 #define TIMER_CHECK_THRESHOLD	9		//forse non serve più
 #define QUEUE_SIZE 256
-#define NUMBER_OF_MSG_TO_TEST 500
+#define NUMBER_OF_MSG_TO_TEST 600 // da 540 le prestazioni cominciano a degradare
 
 /* Thread Functions Definition. */
 static void talkWithSPICAN_Task(void *pvParameters);
@@ -114,6 +114,7 @@ int main(void) {
 	}
 	//Inizializzazione periferica custom su fpga
 	Boot(SPI_Controller);
+
 
 	n_msg = 0;
 
@@ -348,8 +349,8 @@ static void talkWithHost_Task(void *pvParameters) {
 				for (int j = 0; j < (frameBuffer + ofs)->DLC; j++) {
 					(frameBuffer + ofs)->Data[j] = frame_recd->Data[j];	//frame_recd->Data[j];
 				}
-				(frameBuffer + ofs)->CTRL1 = 0xff;
-				(frameBuffer + ofs)->CTRL2 = 0xff;
+				(frameBuffer + ofs)->CTRL1 = 0xdd;
+				(frameBuffer + ofs)->CTRL2 = 0xee;
 				(frameBuffer + ofs)->CTRL3 = 0xff;
 
 				//logica di invio del frameBuffer
@@ -410,9 +411,6 @@ static void talkWithHost_Task(void *pvParameters) {
 			//per ogni messaggio da inviare all'host...
 			for (int i = 0; i < NUMBER_OF_MSG_TO_TEST; i++) {
 
-				//Estrazione messaggio dalla coda
-//				xQueueReceive(xQueue, (void*) frame_recd, portMAX_DELAY);
-
 				//Riempimento frameBuffer
 				int ofs = i % 4;
 				(frameBuffer + ofs)->ID = i/*0x7ea*/;
@@ -421,8 +419,8 @@ static void talkWithHost_Task(void *pvParameters) {
 				for (int j = 0; j < (frameBuffer + ofs)->DLC; j++) {
 					(frameBuffer + ofs)->Data[j] = HEARTHBEAT[j];	//frame_recd->Data[j];
 				}
-				(frameBuffer + ofs)->CTRL1 = 0xff;
-				(frameBuffer + ofs)->CTRL2 = 0xff;
+				(frameBuffer + ofs)->CTRL1 = 0xdd; //abbiamo modificato i byte di controllo, differenziandoli
+				(frameBuffer + ofs)->CTRL2 = 0xee;
 				(frameBuffer + ofs)->CTRL3 = 0xff;
 
 				//logica di invio del frameBuffer
@@ -436,6 +434,7 @@ static void talkWithHost_Task(void *pvParameters) {
 						}
 						XUartPs_Send(&Uart_PS_1, (u8 *) frameBuffer,
 								n_byte_to_send2);
+						sleep(0.8);
 //						xil_printf("frame inviato %u\n", i);
 					} else {
 						n_byte_to_send2 = n_msg_to_send2 * 16;
