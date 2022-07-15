@@ -22,7 +22,7 @@
 #include "analysis.h"
 
 void clearArray(unsigned char array[], int size);
-void frameParser(unsigned char frameToParse[], unsigned char frameToFilter[]);
+void frameParser(unsigned char frameToParse[], unsigned char frameToFilter[], struct CANFrameToReceive **storageCANFrames_tail_ptr_ptr);
 
 int flag;
 int *flag_ptr = &flag;
@@ -33,8 +33,16 @@ unsigned int msg_not_valid = 0;
 unsigned int *cont_valid_msg = &msg_valid;
 unsigned int *cont_not_valid_msg = &msg_not_valid;
 
+//storage per messaggi fittizi (caso 6)
 struct CANFrameToReceive *storageFrames;		  // puntatore all'elemento iniziale dello storage dell'host
 struct CANFrameToReceive *storageFrames_tail_ptr; // puntatore alla prima posizione libera nello storage dell'host
+
+//storage per messaggi dal sistema CAN (caso 5)
+struct CANFrameToReceive *storageCANFrames;		  		// puntatore all'elemento iniziale dello storage dell'host
+struct CANFrameToReceive *storageCANFrames_tail_ptr;	// puntatore alla prima posizione libera nello storage dell'host
+
+static unsigned int cont_storaged = 0;
+
 
 int main()
 {
@@ -53,6 +61,9 @@ int main()
 
 	init_storageFrames(&storageFrames);
 	storageFrames_tail_ptr = storageFrames;
+	
+	init_storageFrames(&storageCANFrames);
+	storageCANFrames_tail_ptr = storageCANFrames;
 
 	printf("MAIN : sto per iniziare la funzione OpenComport\n");
 	cport_nr = RS232_OpenComport_2_0(cport_nr, bdrate, mode, 0, flag_ptr);
@@ -262,7 +273,7 @@ int main()
 					for (int i = 0; i < n / 16; i++)
 					{
 						copyTwoCANFramesToReceive((struct CANFrameToReceive *)frameToParse, (struct CANFrameToReceive *)bufferArray + i);
-						frameParser(frameToParse, HEARTH_BEAT_FRAME);
+						frameParser(frameToParse, HEARTH_BEAT_FRAME, &storageCANFrames_tail_ptr);
 					}
 				}
 				clearArray(bufferArray, 64);
@@ -298,8 +309,11 @@ int main()
 					printf("\tin attesa di risposta...\n");
 					Sleep(100);
 					n = RS232_PollComport(cport_nr, bufferArray, 64);
-
-					printf("\tricevuti %i byte...\n", n);
+                 
+				    MySerialStatus(cport_nr);
+				 
+				 
+ 					printf("\tricevuti %i byte...\n", n);
 					if (n == 0)
 						count2++;
 				}
@@ -370,8 +384,10 @@ void clearArray(unsigned char array[], int size)
 	}
 }
 
-void frameParser(unsigned char frameToParse[], unsigned char frameToFilter[])
+void frameParser(unsigned char frameToParse[], unsigned char frameToFilter[], struct CANFrameToReceive ** storageCANFrames_tail_ptr_ptr)
 {
+	struct CANFrameToReceive *storageFrame_tail_ptr = (*storageCANFrames_tail_ptr_ptr);
+	
 	if (memcmp((unsigned char *)(frameToFilter), (unsigned char *)frameToParse, 16) && frameToParse[8] != 0x0 && frameToParse[9] != 0x0)
 	{
 		// parse Id sensor
@@ -401,6 +417,14 @@ void frameParser(unsigned char frameToParse[], unsigned char frameToFilter[])
 		}
 		printf("\ttemp: %d °C\t", temp);
 		printf("pressure: %d mBar\r\n", pressure);
+		
+		copyTwoCANFramesToReceive(storageFrame_tail_ptr, (struct CANFrameToReceive *)frameToParse);
+		(*storageCANFrames_tail_ptr_ptr) = storageFrame_tail_ptr + 1;
+		cont_storaged++;
+		if( cont_storaged == (NUMBER_OF_MSG_TO_STORE) ) {
+			storageCANFrames_tail_ptr = storageCANFrames;
+		}
+		
 	} else {
 		printf("\n\tparsing del frame saltato\n");
 	}

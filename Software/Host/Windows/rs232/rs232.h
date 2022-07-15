@@ -80,6 +80,7 @@ void RS232_my_flushTX(int);
 int RS232_OpenComport_2_0(int, int, const char *, int, int *);
 int Identify(int);
 void RS_printCommInfo(const char *);
+void MySerialStatus(int);
 
 #ifdef __cplusplus
 } /* extern "C" */

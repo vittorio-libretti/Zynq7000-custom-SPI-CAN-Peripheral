@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #define NUMBER_OF_MSG_TO_STORE 3000
-#define NUMBER_OF_MSG_TO_TEST 600
+#define NUMBER_OF_MSG_TO_TEST 1000
 
 
 struct CANFrameToReceive{

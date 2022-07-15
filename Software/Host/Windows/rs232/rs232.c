@@ -1190,7 +1190,22 @@ void RS_printCommInfo(const char *comXX)
  
 }
 
+void MySerialStatus(int cport_nr) {    
 
+    //HANDLE Cport[comport_number];    //prendere da OpenComport
+    DWORD dwErrorFlags;
+    COMSTAT ComStat;
+	printf("Sto nella MySerialStatus\n");
+    if( ClearCommError( Cport[cport_nr], &dwErrorFlags, &ComStat ) ) {
+        // actualize the last events
+		printf("Sono nell'if della MySerialStatus\n");
+        if(dwErrorFlags & CE_BREAK) printf("\nC'è stato un BREAK ERROR!\n");
+        if(dwErrorFlags & CE_FRAME) printf("\nC'è stato un FRAME ERROR!\n");
+        if(dwErrorFlags & CE_OVERRUN) printf("\nC'è stato un OVERRUN ERROR!\n");
+        if(dwErrorFlags & CE_RXPARITY) printf("\nC'è stato un RXPARITY ERROR!\n");
+        //*(wxSerialPort_EINFO*)args = einfo;
+    }
+}
 
 
 
