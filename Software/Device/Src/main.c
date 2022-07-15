@@ -53,6 +53,9 @@
 #include "xuartps.h"			//funzioni di inizializzazione, trasmissione e ricezione verso la UART (verso l'host).
 #include "platform.h"			//funzioni init_platform() e cleanup_platform() (CODICE DOTTORANDO)
 
+#include "xtime_l.h"
+#include "math.h"
+
 /* Own includes. */
 #include "Devicelib.h"			//mettere la nostra libreria (di alto livello) al posto di questa
 
@@ -65,7 +68,7 @@
 #define DELAY_100_MSECONDS		100UL
 #define TIMER_CHECK_THRESHOLD	9		//forse non serve più
 #define QUEUE_SIZE 256
-#define NUMBER_OF_MSG_TO_TEST 600 // da 540 le prestazioni cominciano a degradare
+#define NUMBER_OF_MSG_TO_TEST 1000 // da 540 le prestazioni cominciano a degradare
 
 /* Thread Functions Definition. */
 static void talkWithSPICAN_Task(void *pvParameters);
@@ -94,6 +97,17 @@ volatile unsigned int * SPI_Controller = (volatile unsigned int *) 0x43c00000; /
 unsigned int n_msg;	//indica il numero di messaggi CAN presenti nella coda
 unsigned int frame_lost = 0;//indica il numero di messaggi CAN che vengono persi quando la coda è piena
 unsigned int * n_frame_lost = &frame_lost;
+
+//VARIABILI PER IL TEMPO
+uint32_t test_time;
+
+XTime gbl_time_before_test;
+XTime *p_gbl_time_before_test = &gbl_time_before_test;
+
+XTime gbl_time_after_test;
+XTime *p_gbl_time_after_test = &gbl_time_after_test;
+
+uint32_t cost_time=0;
 
 int main(void) {
 
@@ -284,8 +298,7 @@ static void talkWithHost_Task(void *pvParameters) {
 
 		case '3': // restituisce il numero di messaggi persi
 
-			while (XUartPs_IsSending(&Uart_PS_1))
-				;
+			while (XUartPs_IsSending(&Uart_PS_1));
 			XUartPs_Send(&Uart_PS_1, (u8 *) n_frame_lost, sizeof(n_frame_lost));
 			choice = 0;
 			break;
@@ -314,21 +327,6 @@ static void talkWithHost_Task(void *pvParameters) {
 				(frameBuffer + i)->CTRL3 = 0;
 			}
 
-			//Stampa frameBuffer
-//			for (int i = 0; i < 4; i++) {
-//
-//				xil_printf("\nFrame CAN:\nID = %x\r\n", (frameBuffer + i)->ID);
-//				xil_printf("DLC = %x\r\n", (frameBuffer + i)->DLC);
-//				xil_printf("Dato = %x ", (frameBuffer + i)->Data[0]);
-//				for (int j = 1; j < ((frameBuffer + i)->DLC) - 1; j++) {
-//					xil_printf("%x ", (frameBuffer + i)->Data[j]);
-//				}
-//				xil_printf("%x\r\n", (frameBuffer + i)->Data[7]);
-//
-//				xil_printf("%x\r\n", (frameBuffer + i)->CTRL1);
-//				xil_printf("%x\r\n", (frameBuffer + i)->CTRL2);
-//				xil_printf("%x\r\n", (frameBuffer + i)->CTRL3);
-//			}
 
 			//variabili d'appoggio
 			int n_msg_to_send = n_msg;
@@ -336,7 +334,12 @@ static void talkWithHost_Task(void *pvParameters) {
 			int n_byte_to_send = 0;
 
 			//per ogni messaggio da inviare all'host...
-			for (int i = 0; i < n_msg; i++) {
+//			int start = (int)clock();
+
+			//start
+		    XTime_GetTime(p_gbl_time_before_test);
+
+		    for (int i = 0; i < n_msg; i++) {
 
 				//Estrazione messaggio dalla coda
 				xQueueReceive(xQueue, (void*) frame_recd, portMAX_DELAY);
@@ -362,8 +365,11 @@ static void talkWithHost_Task(void *pvParameters) {
 						n_msg_to_send = n_msg_to_send - 4;
 						while (XUartPs_IsSending(&Uart_PS_1)) {
 						}
+						//xil_printf("Tempo iniziale%u\n", (unsigned)time(NULL));
 						XUartPs_Send(&Uart_PS_1, (u8 *) frameBuffer,
 								n_byte_to_send);
+						//xil_printf("Tempo finale%u\n", (unsigned)time(NULL));
+
 					} else {
 						n_byte_to_send = n_msg_to_send * 16;
 						n_msg_to_send = 0;
@@ -381,6 +387,20 @@ static void talkWithHost_Task(void *pvParameters) {
 				//Azzeramento frame_recd (per la prossima estrazione)
 				zero_CANframe(frame_recd);
 			}
+
+		    //STOP
+		    XTime_GetTime(p_gbl_time_after_test);
+
+		    test_time = (u64) gbl_time_after_test - (u64) gbl_time_before_test;
+
+		    xil_printf("Tempo di esecuzione =  %d secondi \n", test_time);
+
+
+		    cost_time = test_time /(uint32_t)((65*1000000)/2) ;
+		    xil_printf("Test time = %d sec \n", cost_time);
+
+//			int end = (int)clock();
+//			xil_printf("Tempo di esecuzione =  %f secondi \n", ((double)(end - start)) / CLOCKS_PER_SEC);
 
 			n_msg = 0;
 			choice = 0;
@@ -434,7 +454,7 @@ static void talkWithHost_Task(void *pvParameters) {
 						}
 						XUartPs_Send(&Uart_PS_1, (u8 *) frameBuffer,
 								n_byte_to_send2);
-						sleep(0.8);
+						usleep(100000);
 //						xil_printf("frame inviato %u\n", i);
 					} else {
 						n_byte_to_send2 = n_msg_to_send2 * 16;
