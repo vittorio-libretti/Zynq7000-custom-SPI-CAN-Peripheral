@@ -19,8 +19,8 @@ Folder Host contains the source code for the host:
 
 Folder project_from_scratch cntains the Vitis project for the Zybo device:
  - main.c: contains the main function, that initialize the two task, the queue and starts the scheduler, as well as the definition of che functions executed by the tasks;
-Devicelib.h/Devicelib.c: high level library with utility functions for the main program, such as the functions that take messages from the custom peripheral SPI Controller;
-SPI.h/SPI.c: low level library to interact with the custom peripheral SPI Controller, as well as a function to boot the Pmod CAN module.
+ - Devicelib.h/Devicelib.c: high level library with utility functions for the main program, such as the functions that take messages from the custom peripheral SPI Controller;
+ - SPI.h/SPI.c: low level library to interact with the custom peripheral SPI Controller, as well as a function to boot the Pmod CAN module.
 
 
 Folder SPI_Hardware_Design_Z700 contains the hardware platform on which to develop the software on Zybo device, such as the BSP level. This folder must be imported into Vitis IDE. Also contains the bitstream file (subfolder /bitstream/SPI_Hardware_Design.bit) and the XSA file (/hw/SPI_Hardware_Design_Z700.xsa).
