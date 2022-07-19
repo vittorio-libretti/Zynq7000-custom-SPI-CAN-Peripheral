@@ -1,7 +1,7 @@
 /**************************************************
 
  file: host.c
- purpose: client of an application with a zybo server
+ purpose: program that implements the communication protocol with the device zybo
 
  compile with the command: gcc host.c analysis.c rs232.c -Wall -Wextra -o2 -o host
 
