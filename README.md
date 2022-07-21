@@ -20,7 +20,7 @@ Folder Host contains the source code for the host:
 
 Folder project_from_scratch cntains the Vitis project for the Zybo device:
  - main.c: contains the main function in witch defining and initializing the two task managed with FreeRTOS,them starts the scheduler. 
-           the two tasks regulate decouple between the CAN message and Host request.
+           The two tasks regulate decouple between the CAN message and Host request.
            In particular: the "talkWithSPICAN_Task" receive the CAN mex and store it in the FreeRTOS circular queue.
                           the "talkWithHost_Task" responds to Host requests
  - Devicelib.h/Devicelib.c: high level library with utility functions for the main program, such as the functions that take messages from the custom peripheral SPI Controller;
