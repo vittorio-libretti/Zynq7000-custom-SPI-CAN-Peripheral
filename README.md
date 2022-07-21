@@ -10,7 +10,6 @@ The resources provided are divided into 3 folders:
  - project_from_scratch;
  - SPI_Hardware_Design_Z700.
 
-
 Folder Host contains the source code for the host: 	
  - host.c: contains the core logic of the program, that is the main function and a switch-case instruction depending on the command diven by the user;
  - analysis.h/analysis.c: high level library with utility functions for the main program, such as the function that analyzes of the messages received;
