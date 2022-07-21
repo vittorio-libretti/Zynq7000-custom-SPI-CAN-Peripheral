@@ -1,7 +1,9 @@
 # Zynq7000-custom-SPI-CAN-Peripheral
 
 # Project Overview
-This is a project written in C language for university purposes. It was created in Vivado/Vitis Xilinx suite. It allows you to use a Zybo device to receive CAN messages from a CAN acquisition system and possibly forward them to an host system with Windows OS. A real custom asynchronous communication protocol between host and device has been specifically designed for it.
+This is a project written in C language for university purposes. It was created in Vivado/Vitis Xilinx suite. 
+It allows you to use a Zybo device to receive CAN messages from a CAN acquisition system and possibly forward them to an host system with Windows OS. 
+A real custom asynchronous communication protocol between host and device has been specifically designed for it.
 
 
 # File Organization
